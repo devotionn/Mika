@@ -206,9 +206,11 @@ fun ChatScreen(
     onOpenTeach: (String) -> Unit = {},
     /** 首页推荐任务。不传时用本机保存的那一份;测试传入单独的存储,避免改到用户的数据。 */
     recommendations: RecommendedTaskStore? = null,
+    workflows: com.wangzan101.mika.workflow.WorkflowRuntime? = null,
     openReport: (String) -> Unit = {},
     openPlayback: (String) -> Unit = {},
 ) {
+    val workflowRuntime = workflows ?: (LocalContext.current.applicationContext as? MikaApp)?.workflows
     val recommendationStore = recommendations
         ?: (LocalContext.current.applicationContext as? MikaApp)?.recommendedTasks
     val recommendedTasksFlow = remember(recommendationStore) {
@@ -253,6 +255,7 @@ fun ChatScreen(
     // 推荐任务可以直接填进空输入框;已有内容时先确认,不能因误触把草稿换掉。
     var pendingExample by remember(ui.conversationId) { mutableStateOf<String?>(null) }
     var showSavedTasks by remember(ui.conversationId) { mutableStateOf(false) }
+    var showWorkflows by rememberSaveable { mutableStateOf(false) }
     var saveTaskPrompt by remember(ui.conversationId) { mutableStateOf<String?>(null) }
     var retryFailures by remember { mutableStateOf<Pair<String, String>?>(null) }
     var voiceHolding by remember { mutableStateOf(false) }
@@ -368,6 +371,7 @@ fun ChatScreen(
     LaunchedEffect(ui.pendingSharedDraft, ui.sharedDraft) {
         if (ui.pendingSharedDraft != null || ui.sharedDraft != null) {
             pendingExample = null
+            showWorkflows = false
             if (menu != null) {
                 lift.snapTo(0f)
                 menu = null
@@ -482,7 +486,7 @@ fun ChatScreen(
             mode = ui.composer,
             hasHistory = ui.exchanges.isNotEmpty(),
             onSend = { vm.send(input, check) },
-            onSavedTasks = if (recommendationStore != null && ui.composer == ComposerMode.Idle) ({ showSavedTasks = true }) else null,
+            onSavedTasks = if (recommendationStore != null) ({ showSavedTasks = true }) else null,
             onTeach = if (ui.composer == ComposerMode.Idle) ({ onOpenTeach(input.trim()) }) else null,
             onStop = vm::cancel,
             queued = ui.queued,
@@ -658,10 +662,25 @@ fun ChatScreen(
         properties = androidx.compose.ui.window.DialogProperties(usePlatformDefaultWidth = false),
     ) {
         androidx.compose.material3.Surface(Modifier.fillMaxSize()) {
-            RecommendedTasksScreen(recommendationStore, onBack = { showSavedTasks = false }, onPick = { prompt ->
+            RecommendedTasksScreen(recommendationStore, onBack = { showSavedTasks = false },
+                onOpenWorkflows = if (workflowRuntime != null) ({ showSavedTasks = false; showWorkflows = true }) else null,
+                onPick = { prompt ->
                 showSavedTasks = false
                 if (vm.ui.value.input.isEmpty()) vm.input(prompt) else pendingExample = prompt
             })
+        }
+    }
+    if (showWorkflows && workflowRuntime != null) androidx.compose.ui.window.Dialog(
+        onDismissRequest = { showWorkflows = false },
+        properties = androidx.compose.ui.window.DialogProperties(usePlatformDefaultWidth = false),
+    ) {
+        androidx.compose.material3.Surface(Modifier.fillMaxSize()) {
+            WorkflowsScreen(workflowRuntime, onBack = { showWorkflows = false },
+                onOpenConversation = { id -> showWorkflows = false; vm.openWorkflowConversation(id) },
+                onUseResult = { text ->
+                    showWorkflows = false
+                    if (vm.ui.value.input.isEmpty()) vm.input(text) else pendingExample = text
+                })
         }
     }
     saveTaskPrompt?.let { prompt ->

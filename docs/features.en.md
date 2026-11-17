@@ -10,6 +10,15 @@ Tell Mika what you want in one sentence, and it gets it done on your phone. This
 - Choosing a task on a new chat or through the star fills the current composer for editing before sending. Existing text requires confirmation before replacement.
 - Tasks are stored locally, preserving the previous recommended-task list. Saving and selecting tasks do not call a model or execute a task.
 
+## Reusable multi-step tasks
+
+- Open the star beside the composer → “Multi-step tasks” to create a task with 2–8 named steps. Edit, reorder, duplicate, or delete templates and supply requirements for each run. A running task uses an immutable template snapshot.
+- Steps use the existing phone task service in sequence, each in its own conversation. Each receives the run requirements and the previous step’s text result, with instructions to inspect the current screen before acting. Previous clicks are never replayed. Results should retain information needed downstream; attachments and workspace files are not automatically passed between steps in this first version.
+- Progress includes each step’s result and conversation, where you can answer questions, take over, or stop. The star remains available during execution. “Pause after this step” finishes the current step before pausing; continuing retains completed work.
+- Only a successful existing outcome judgment advances automatically. Failure, cancellation, an unknown judgment, or process interruption requires review. Inspect the conversation, supply an existing result, or explicitly retry that step. Retries keep prior attempts and use new execution IDs. Potentially completed messages are never automatically resent; model-based judgments cannot guarantee exactly-once actions in external apps.
+- Final text results are saved in run history and can be copied or inserted into the composer, protecting existing drafts. Run again with different requirements. Templates and history are encrypted locally; deleting a template retains its run history.
+- Limits: 30 templates, 50 runs, 10 attempts per step; titles 100 characters, step instructions 2000, run requirements 4000, and results 12000. At capacity, only the oldest completed run is pruned. Oversized results require editing before continuing. One multi-step task runs at a time, using existing queueing, phone permissions, and model settings.
+
 ## Operates any app without taking over your screen
 
 Any app installed on your phone works, with no per-app integration: Mika looks at the screen, finds buttons, taps and types like a person would. If it can see it, it can operate it.
