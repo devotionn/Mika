@@ -70,11 +70,22 @@ data class WechatQrStatus(
 @Serializable
 data class WechatText(val text: String = "")
 
+/** Only the immediate quoted item's media is relevant, not older quotes or their text. */
+@Serializable
+data class WechatQuotedItem(
+    val type: Int = 0,
+    @SerialName("image_item") val imageItem: WechatImage? = null,
+)
+
+@Serializable
+data class WechatReference(@SerialName("message_item") val item: WechatQuotedItem? = null)
+
 @Serializable
 data class WechatItem(
     val type: Int = 0,
     @SerialName("text_item") val textItem: WechatText? = null,
     @SerialName("image_item") val imageItem: WechatImage? = null,
+    @SerialName("ref_msg") val reference: WechatReference? = null,
 )
 
 @Serializable
@@ -108,7 +119,11 @@ data class WechatMessage(
         if (!isUserPrivateMessage()) return null
         val text = items.filter { it.type == 1 }.mapNotNull { it.textItem?.text?.takeIf(String::isNotBlank) }
             .joinToString("\n")
-        val images = items.filter { it.type == 2 }.map { it.imageItem ?: WechatImage() }
+        val images = if (items.all { it.type == 1 }) {
+            items.mapNotNull { it.reference?.item }.filter { it.type == 2 }.map { it.imageItem ?: WechatImage() }
+        } else {
+            items.filter { it.type == 2 }.map { it.imageItem ?: WechatImage() }
+        }
         return WechatUserContent(text, images).takeIf { text.isNotBlank() || images.isNotEmpty() }
     }
 }

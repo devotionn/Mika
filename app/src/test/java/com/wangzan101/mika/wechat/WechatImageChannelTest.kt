@@ -80,6 +80,29 @@ class WechatImageChannelTest {
         }
     }
 
+    @Test fun quotedPictureAndCaptionReachTaskTogether() = runBlocking {
+        MockWebServer().use { server ->
+            server.start(InetAddress.getByName("127.0.0.1"), 0)
+            val api = api(server)
+            val workspace = tmp.newFolder()
+            val files = StoredWechatImages(tmp.newFolder(), api::downloadImage, { PreparedWechatImage(it.bytes, it.extension) },
+                { workspace }, JVM_GATE, SandboxTree(), { true }, { null })
+            val inputs = mutableListOf<ChannelInput.Text>()
+            val channel = WechatChannel(store(server), api, log = {}, imageFiles = files)
+            channel.start(ChannelInputSink { inputs += it as ChannelInput.Text })
+            server.enqueue(json("""{"msgs":[{"message_id":1,"from_user_id":"owner","message_type":1,"item_list":[
+                {"type":1,"text_item":{"text":"看看这张图"},"ref_msg":{"message_item":{
+                    "type":2,"image_item":{"media":{"full_url":"${server.url("/picture")}"}}}}}]}]}"""))
+            server.enqueue(MockResponse().setBody(okio.Buffer().write(png)))
+            channel.pollOnce()
+            val message = AttachmentLines.parse(inputs.single().text)
+            assertEquals("看看这张图", message.words)
+            assertEquals(1, message.files.size)
+            val file = File(workspace, message.files.single().first.removePrefix("/workspace/"))
+            assertArrayEquals(png, file.readBytes())
+        }
+    }
+
     @Test fun missingPictureProducesOneDurableFailureNoticeAndNeverStartsCaptionAsTask() = runBlocking {
         MockWebServer().use { server ->
             server.start(InetAddress.getByName("127.0.0.1"), 0)
