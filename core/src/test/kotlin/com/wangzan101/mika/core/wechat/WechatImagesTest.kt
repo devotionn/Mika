@@ -85,9 +85,9 @@ class WechatImagesTest {
         }""").userContent()!!
 
         // An explicitly referenced image with missing media must use the normal failed-image path.
-        assertEquals(listOf(WechatImage()), content(quote).images)
+        assertEquals(2, content(quote).references.single().item?.type)
         assertEquals(listOf("new"), content("$quote,$direct").images.map { it.media?.encryptQueryParam })
-        assertTrue(content("""$quote,{"type":4}""").images.isEmpty())
+        assertTrue(content("""$quote,{"type":4}""").references.isEmpty())
     }
 
     @Test fun downloadsBothBase64KeyEncodingsAndPrefersTopLevelHex() = server { server, api ->
